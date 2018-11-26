@@ -1,0 +1,181 @@
+#!/usr/bin/env ruby
+
+require 'bundler/setup'
+require 'tempfile'
+require 'yaml'
+require 'optparse'
+require 'logger'
+require 'rdpcmd'
+require 'csv'
+
+require 'pp'
+
+$PRGNAME="rdpcmd"
+$options = {}
+$options['loglevel'] = 'WARN'
+$options['logname'] = nil
+$options['domain'] = ''
+
+# helpful class for logger
+class MultiDelegator
+  def initialize(*targets)
+    @targets = targets
+  end
+
+  def self.delegate(*methods)
+    methods.each do |m|
+      define_method(m) do |*args|
+	@targets.map { |t| t.send(m, *args) }
+      end
+    end
+    self
+  end
+
+  class <<self
+    alias to new
+  end
+end
+
+
+begin
+	optyaml = YAML::load_file(ENV['HOME']+'/.rdpcmd')
+rescue # Errno::ENOENT
+end
+
+if optyaml != nil then
+	$options.merge!(optyaml)
+end
+
+# initialize logger
+if $options['logname'] != nil then
+	log_file = File.open($options['logname'], 'a')
+	@log = Logger.new MultiDelegator.delegate(:write, :close).to(STDERR, log_file)
+else
+	@log = Logger.new MultiDelegator.delegate(:write, :close).to(STDERR)
+end
+loglevel =  Logger.const_get $options['loglevel'] # Logger::INFO # default is ::WARN
+@log.level = loglevel
+
+# pp $options
+
+OptionParser.new do |opts|
+	opts.banner = "Usage: #{$PRGNAME} [options]"
+
+	opts.on("-v", "--[no-]verbose", "Run verbosely") do |v|
+		$options['verbose'] = v
+		@log.level = Logger::INFO
+	end
+
+	opts.on("-d", "--[no-]debug", "Run in debug mode") do |v|
+		$options['debug'] = v
+		@log.level = Logger::DEBUG
+	end
+
+	opts.on("-e", "--[no-]elevated", "run in elevated prompt") do |optarg|
+		$options['elevated'] = optarg
+	end
+
+	opts.on("-x", "--exit SECONDS", "close cmd window after SECONDS") do |optarg|
+		$options['exit'] = optarg
+	end 
+
+	opts.on("-f", "--file FILE", "get list of IP addresses from file") do |optarg|
+		$options['file'] = optarg
+	end
+
+	opts.on("-c", "--cmd CMD", "run command CMD") do |optarg|
+		$options['cmd'] = optarg
+	end
+
+	opts.on("-i", "--ip IP", "run on this IP") do |optarg|
+		$options['ip'] = optarg
+	end
+
+	opts.on("-m", "--domain DOMAIN", "run with domain") do |optarg|
+		$options['domain'] = optarg
+	end
+
+	opts.on("-u", "--user USER", "run with USER") do |optarg|
+		$options['user'] = optarg
+	end
+
+	opts.on("-p", "--password PASS", "run with PASS") do |optarg|
+		$options['password'] = optarg
+	end
+
+	opts.on("-h", "--help", "Prints this help") do
+		puts opts
+		exit
+	end
+
+	opts.on("-l", "--log FILE", "log to FILE") do |optarg|
+		$options['logname'] = optarg
+	end
+
+	opts.separator ""
+	opts.separator "Example #1: #{$PRGNAME} -u user -p password -i 192.168.1.1 -c 'whoami' -x 3"
+	opts.separator "Example #2: #{$PRGNAME} -u user -p password -i 192.168.1.1 -e -c 'winrm quickconfig -quiet -force' -x 5"
+end.parse!
+
+def handle_single(ip,domain,user,password,cmd)
+	rcmd=Rdpcmd::Rdpcmd.new('log'=>@log)
+
+	@log.debug("Connecting to IP: #{ip} with user #{user} and domain #{domain}")
+	unless rcmd.connect('server'=>ip,'username'=>user,'password'=>password,'domain'=>domain) then
+		@log.error("Exiting...")
+		rcmd.terminate()
+		return
+	end
+
+	@log.info("Executing: #{$options["cmd"]}")
+
+	if $options['elevated']
+		rcmd.singleElevated($options["cmd"],$options["exit"].to_i)
+	else
+		rcmd.singleNormal($options["cmd"],$options["exit"].to_i)
+	end
+
+	rcmd.terminate()
+end
+
+if $options['ip'] then
+	ip=$options['ip']
+	user=$options['user']
+	password=$options['password']
+	domain=$options['domain'] || ""
+
+	handle_single(ip,domain,user,password,$options["cmd"])
+end
+
+pp $options
+
+if $options['file'] then
+	CSV.foreach($options['file']) do |row|
+		ip=row[0]
+		user=$options['user']
+		password=$options['password']
+		domain=$options['domain'] || ""
+		cmd=$options["cmd"]
+		pp domain
+		pp row.size
+		if row.size>1 then
+			domain=row[1]
+		end
+		if row.size>2 then
+			user=row[2]
+		end
+		if row.size>3 then
+			password=row[3]
+		end
+		if row.size>4 then
+			cmd=row[4]
+		end
+	
+		pp row
+		pp ip, domain, user, password, cmd
+
+		handle_single(ip,domain,user,password,cmd)
+	end
+end
+
+
