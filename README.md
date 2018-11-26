@@ -8,9 +8,10 @@ Execute commands on Windows via RDP. Helps if you need to run commands on large 
 Quick installation:
 
 ```
+sudo apt-get install xdotool remmina
 gem install rdpcmd
-remmina # just to generate
-rdpcmd --help # you'll find your way
+remmina # just to generate global secret
+rdpcmd --help # you'll find your way further
 ```
 
 Add this line to your application's Gemfile:
@@ -50,7 +51,7 @@ To install this gem onto your local machine, run `bundle exec rake install`. To 
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/rdpcmd. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [Contributor Covenant](http://contributor-covenant.org) code of conduct.
+Bug reports and pull requests are welcome on GitHub at https://github.com/kost/rdpcmd-ruby. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [Contributor Covenant](http://contributor-covenant.org) code of conduct.
 
 
 ## License
