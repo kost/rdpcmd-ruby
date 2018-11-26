@@ -58,3 +58,14 @@ Bug reports and pull requests are welcome on GitHub at https://github.com/kost/r
 
 The gem is available as open source under the terms of the [MIT License](http://opensource.org/licenses/MIT).
 
+## Known Limitations
+
+Since it is Proof of Concept (PoC), it have some limitations (pull requests are welcome!):
+
+* You have to match keyboard layout (or command you type will differ from what is typed on RDP session)
+* Don't use it from untrusted inputs (google 'command injection' and how scary it is)
+* Does not handle errors well (connection failure, wrong credentials, etc)
+* Will not report if it fails
+* You have to play with timeouts/sleeps if you have slow network or host targets
+
+
